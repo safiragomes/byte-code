@@ -439,7 +439,7 @@
     view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "Como funciona")));
     view.appendChild(h("div", { class: "how" },
       h("div", { class: "card" }, h("b", null, "Rode o código"), h("p", null, "Todo exemplo roda aqui mesmo, no navegador. Edite, quebre e rode de novo.")),
-      h("div", { class: "card" }, h("b", null, "O Byte explica seus erros"), h("p", null, "Sintaxe, `self` esquecido, `print` no lugar de `return`: ele aponta a linha e sugere o conserto.")),
+      h("div", { class: "card" }, h("b", null, "O Byte explica seus erros"), h("p", { html: U.inline("Sintaxe, `self` esquecido, `print` no lugar de `return`: ele aponta a linha e sugere o conserto.") })),
       h("div", { class: "card" }, h("b", null, "Seu histórico fica salvo"), h("p", null, "Código, tentativas e progresso ficam guardados neste navegador. Use “Dados” para fazer uma cópia."))));
     view.appendChild(h("div", { class: "foot" }, CFG.disciplina + " · " + CFG.periodo + (Store.falhou() ? " · Atenção: este navegador bloqueou o armazenamento; seu progresso vale só até fechar a página." : "")));
   }

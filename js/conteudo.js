@@ -26,7 +26,7 @@ window.BYTE_HISTORIA = {
   chamada: "Byte achou algo no fundo do laboratório.",
   paragrafos: [
     "Ao reabrir o antigo laboratório do CIn, Byte tropeçou num cartucho empoeirado com a etiqueta `TROIA.EXE`. Troia nunca foi apagado: depois da batalha das listas de recursão, ele se escondeu num jogo inacabado, o **Mundo Pixel**, onde cada bug sem correção o deixa mais forte.",
-    "Para entrar, Byte precisa encher a mochila com **8 adesivos de conhecimento**. Você é a(o) monitora(o) de confiança dele: aprenda cada conceito, conserte os bugs e, no fim, construa a sua própria fase do Mundo Pixel. Esse é o projeto final."
+    "Para entrar, Byte precisa encher a mochila com **8 adesivos de conhecimento**. Você é a pessoa monitora de confiança dele: aprenda cada conceito, conserte os bugs e, no fim, construa a sua própria fase do Mundo Pixel. Esse é o projeto final."
   ],
   fase3: "As fases construídas por turmas anteriores ficaram guardadas nos arquivos do Mundo Pixel. A sua entra na galeria."
 };

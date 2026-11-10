@@ -551,3 +551,39 @@ h1, h2, h3, h4 { letter-spacing: -.012em; font-weight: 800; }
 .CodeMirror-scroll { max-width: 100%; }
 
 @media (pointer: coarse) { .dpad { grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); gap: 6px; } .dpad button { font-size: 1.3rem; } }
+
+/* ===== ajustes de tela (Windows, zoom e escala) ===== */
+html, body { height: 100dvh; }
+.shell { height: 100dvh; }
+@supports not (height: 100dvh) { html, body, .shell { height: 100vh; } }
+/* barras de rolagem finas e escuras, em vez das claras do Windows */
+* { scrollbar-width: thin; scrollbar-color: #4a58ad #0b0f31; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0b0f31; }
+::-webkit-scrollbar-thumb { background: #3b4896; border-radius: 6px; border: 2px solid #0b0f31; }
+::-webkit-scrollbar-thumb:hover { background: #5666c4; }
+::-webkit-scrollbar-corner { background: #0b0f31; }
+/* conteúdo se adapta: mais largo em telas grandes, nunca estoura em telas pequenas */
+.view { max-width: min(1000px, 100%); }
+.view.wide { max-width: min(1360px, 100%); }
+@media (min-width: 1700px) { .view { max-width: 1060px; } .view.wide { max-width: 1500px; } }
+.side { padding-bottom: 40px; }
+/* etiquetas das fases não esticam na largura do cartão */
+.fase .tag { align-self: flex-start; }
+.fase { min-width: 0; }
+.fases { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.how { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.mochila { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+/* banner: legibilidade do título sobre a arte */
+.hero-banner::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10, 13, 41, .88) 0%, rgba(10, 13, 41, .55) 38%, rgba(10, 13, 41, 0) 62%); pointer-events: none; }
+.hero-banner .hb-text { position: relative; max-width: 46%; }
+.hero-banner .hb-text h1 { font-size: clamp(1.5rem, 3.4vw, 3.2rem); }
+/* telas baixas (notebooks com escala 125% ou 150%) */
+@media (max-height: 700px) and (min-width: 861px) {
+  .topbar { height: 52px; }
+  .shell { grid-template-rows: 52px 1fr; }
+  .view { padding-top: 18px; }
+  .chal-left { max-height: calc(100dvh - 84px); }
+}
+/* pouco espaço lateral: esconde a trilha e deixa só o conteúdo */
+@media (min-width: 861px) and (max-width: 1100px) { .shell { grid-template-columns: 240px minmax(0, 1fr); } }
