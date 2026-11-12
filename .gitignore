@@ -1,0 +1,5 @@
+# ferramentas locais (skills de agentes), não fazem parte do site
+.agents/
+.claude/
+skills-lock.json
+__pycache__/

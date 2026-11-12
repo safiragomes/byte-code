@@ -19,7 +19,7 @@ window.BYTE_DESAFIOS = [
   {
     id: "d1", num: 1, titulo: "A ficha do Byte", conceito: "Classe e Objeto", emoji: "🧬",
     dificuldade: "Aquecimento", xp: 50,
-    dikastis: { titulo: "Questão 1 — Classe e Objeto", url: "https://dikastis.com.br/problems/01KSP02HJBVW2739SDK6VBGZSN" },
+    dikastis: { titulo: "Questão 1: Classe e Objeto", url: "https://dikastis.com.br/problems/01KSP02HJBVW2739SDK6VBGZSN" },
     historia: "Na entrada do Mundo Pixel, o portal só reconhece quem tem **ficha cadastrada**. Ajude o Byte a criar o molde de ficha de cachorro e cadastrar dois moradores.",
     tarefa: [
       "Crie a classe `Cachorro`.",
@@ -37,7 +37,7 @@ window.BYTE_DESAFIOS = [
         dica: "Dentro do `__init__`, escreva `self.nome = nome` e `self.idade = idade`." },
       { id: "t2", nome: "Cada objeto guarda os próprios dados",
         py: "a = new('Cachorro', 'A', 1)\nb = new('Cachorro', 'B', 2)\nexpect(a.nome, 'A', 'a.nome')\nexpect(b.nome, 'B', 'b.nome')\nexpect(a.idade, 1, 'a.idade')",
-        dica: "Os atributos precisam começar com `self.` para ficarem no objeto — senão viram variáveis locais." },
+        dica: "Os atributos precisam começar com `self.` para ficarem no objeto. Sem isso, viram variáveis locais." },
       { id: "t3", nome: "Existe a variável `byte` (\"Byte\", 1)",
         py: "expect_true('byte' in ns, 'Não encontrei a variável `byte`. Crie o objeto no nível de fora da classe: byte = Cachorro(...)')\nexpect(ns['byte'].nome, 'Byte', 'byte.nome')\nexpect(ns['byte'].idade, 1, 'byte.idade')" },
       { id: "t4", nome: "Existe a variável `rex` (\"Rex\", 4)",
@@ -55,7 +55,7 @@ window.BYTE_DESAFIOS = [
   {
     id: "d2", num: 2, titulo: "Energia do Byte", conceito: "Atributos e Métodos", emoji: "⚡",
     dificuldade: "Fácil", xp: 80,
-    dikastis: { titulo: "Questão 2 — Atributos e Métodos", url: "https://dikastis.com.br/problems/01KSP3H9YEVXCMGV151WXRNZ8A" },
+    dikastis: { titulo: "Questão 2: Atributos e Métodos", url: "https://dikastis.com.br/problems/01KSP3H9YEVXCMGV151WXRNZ8A" },
     historia: "Dentro do Mundo Pixel, cada ação cansa. Byte precisa de uma **barra de energia** que gasta ao brincar, recupera ao descansar e nunca passa dos limites.",
     tarefa: [
       "Crie a classe `Byte`. No `__init__` (sem parâmetros além do `self`), crie o atributo `energia` começando em `10`.",
@@ -89,7 +89,7 @@ window.BYTE_DESAFIOS = [
     dicas: [
       "Atributos (como `energia`) ficam em `self.` e são criados no `__init__`. Métodos que **mudam** o estado, como `brincar`, não precisam de `return`.",
       "Para não passar dos limites, depois de somar/subtrair faça uma verificação com `if`. Ou use `max(0, valor)` e `min(10, valor)`.",
-      "`status` é diferente: ele **devolve** (return) um texto — não imprime."
+      "`status` é diferente: ele **devolve** (return) um texto, não imprime."
     ],
     solucao: "class Byte:\n    def __init__(self):\n        self.energia = 10\n\n    def brincar(self):\n        self.energia -= 3\n        if self.energia < 0:\n            self.energia = 0\n\n    def descansar(self):\n        self.energia += 4\n        if self.energia > 10:\n            self.energia = 10\n\n    def status(self):\n        return f\"Energia: {self.energia}/10\"\n"
   },
@@ -98,7 +98,7 @@ window.BYTE_DESAFIOS = [
   {
     id: "d3", num: 3, titulo: "Cofre de Petiscos", conceito: "Encapsulamento", emoji: "🔒",
     dificuldade: "Médio", xp: 100,
-    dikastis: { titulo: "Questão 3 — Encapsulamento", url: "https://dikastis.com.br/problems/01KSP807WF1CA377GS8VTPVG64" },
+    dikastis: { titulo: "Questão 3: Encapsulamento", url: "https://dikastis.com.br/problems/01KSP807WF1CA377GS8VTPVG64" },
     historia: "Os bugs do Mundo Pixel adoram roubar os petiscos do Byte. A solução é um **cofre**: a senha e a quantidade ficam escondidas, e só dá para mexer pelos métodos certos.",
     tarefa: [
       "Crie a classe `CofreDePetiscos` com `__init__(self, senha, petiscos)`.",
@@ -144,7 +144,7 @@ window.BYTE_DESAFIOS = [
   {
     id: "d4", num: 4, titulo: "A família de Troia", conceito: "Herança e Polimorfismo", emoji: "🧩",
     dificuldade: "Médio", xp: 120,
-    dikastis: { titulo: "Questão 4 — Herança e Polimorfismo", url: "https://dikastis.com.br/problems/01KSQ5P8J6G1TR5ME0PM2HDC3Z" },
+    dikastis: { titulo: "Questão 4: Herança e Polimorfismo", url: "https://dikastis.com.br/problems/01KSQ5P8J6G1TR5ME0PM2HDC3Z" },
     historia: "Todos os inimigos do Mundo Pixel descendem de um mesmo molde, mas cada um ataca do seu jeito. Os bugs comuns **reaproveitam** o ataque básico; **Troia.EXE** troca tudo por um ataque próprio.",
     tarefa: [
       "Classe mãe `Inimigo`: `__init__(self, nome)` guarda o `nome`; o método `atacar()` **retorna** `\"Ataque genérico!\"`.",
@@ -166,7 +166,7 @@ window.BYTE_DESAFIOS = [
         py: "expect_true(issubclass(cls('BugSelvagem'), cls('Inimigo')), '`BugSelvagem` precisa herdar de `Inimigo`: class BugSelvagem(Inimigo):')\nb = new('BugSelvagem', 'Bugzinho')\nexpect(attr(b, 'nome'), 'Bugzinho', 'b.nome')" },
       { id: "t3", nome: "BugSelvagem.atacar() = mãe + mordida",
         py: "b = new('BugSelvagem', 'Bugzinho')\nexpect(call(b.atacar), 'Ataque genérico! Mordida de bug!', 'BugSelvagem.atacar()')",
-        dica: "`return super().atacar() + \" Mordida de bug!\"` — repare no espaço antes de `Mordida`." },
+        dica: "`return super().atacar() + \" Mordida de bug!\"`. Repare no espaço antes de `Mordida`." },
       { id: "t4", nome: "Troia ataca do seu jeito",
         py: "expect_true(issubclass(cls('Troia'), cls('Inimigo')), '`Troia` precisa herdar de `Inimigo`.')\nt = new('Troia', 'Troia')\nexpect(call(t.atacar), 'Caso base não encontrado... Stack overflow!', 'Troia.atacar()')" },
       { id: "t5", nome: "Polimorfismo: a mesma chamada, comportamentos diferentes",
@@ -182,9 +182,9 @@ window.BYTE_DESAFIOS = [
 
   /* ------------------------------------------------------------------ D5 */
   {
-    id: "d5", num: 5, titulo: "Ataque coordenado", conceito: "União de todos os conceitos", emoji: "🛡️",
+    id: "d5", num: 5, titulo: "Ataque coordenado", conceito: "Todos os conceitos juntos", emoji: "🛡️",
     dificuldade: "Desafio", xp: 150,
-    dikastis: { titulo: "Questão 5 — União de todos os conceitos", url: "https://dikastis.com.br/problems/01KT2QYD0PAJB4XYN3T8GH3HVZ" },
+    dikastis: { titulo: "Questão 5: Todos os conceitos juntos", url: "https://dikastis.com.br/problems/01KT2QYD0PAJB4XYN3T8GH3HVZ" },
     historia: "Troia.EXE está no centro do Mundo Pixel e uma pessoa só não derruba. Byte reúne os **monitores** e todos atacam juntos: a soma dos poderes tem que vencer a defesa dele.",
     tarefa: [
       "A classe `Inimigo` já está pronta no código inicial (herança!).",

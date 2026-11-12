@@ -121,7 +121,7 @@ window.Widgets = (function () {
     var W = 480, H = 270;
     var canvas = h("canvas", { width: W, height: H, tabindex: "0", "aria-label": "Mini jogo: use as setas para mover o quadrado azul" });
     var ctx = canvas.getContext("2d");
-    var keys = {}, estagio = 0, lento = false, timer = null, raf = null, flash = 0, msg = "";
+    var keys = {}, apertadas = {}, estagio = 0, lento = false, timer = null, raf = null, flash = 0, msg = "";
     var p, en, coins, placar;
     function reset() {
       p = { x: 40, y: 120, w: 28, h: 28, v: 1.6 }; en = { x: 160, y: 200, w: 28, h: 28, v: 1.2 };
@@ -163,7 +163,7 @@ window.Widgets = (function () {
     var etapaTxt = h("div", { class: "lbl", style: "margin-top:10px;color:var(--cyan)" }, "Ao vivo: 60 quadros por segundo");
     function destaca(n) {
       nodesL.forEach(function (d, i) { d.classList.toggle("on", linhas[i][1] === n && n > 0); });
-      etapaTxt.textContent = n === 1 ? "Etapa 1 · Eventos: lê o teclado" : n === 2 ? "Etapa 2 · Atualizar: move, colide, coleta" : n === 3 ? "Etapa 3 · Desenhar: pinta o quadro novo" : "Ao vivo: 60 quadros por segundo";
+      etapaTxt.textContent = n === 1 ? "Etapa 1, eventos: lê o teclado" : n === 2 ? "Etapa 2, atualizar: move, colide, coleta" : n === 3 ? "Etapa 3, desenhar: pinta o quadro novo" : "Ao vivo: 60 quadros por segundo";
     }
     function parar() { if (timer) clearInterval(timer); timer = null; if (raf) cancelAnimationFrame(raf); raf = null; }
     function iniciar() {
@@ -173,8 +173,13 @@ window.Widgets = (function () {
         timer = setInterval(function () {
           if (!canvas.isConnected) return parar();
           estagio = estagio % 3 + 1; destaca(estagio);
-          if (estagio === 2) atualizar(10); if (estagio === 3) desenhar();
-        }, 750);
+          if (estagio === 2) {
+            // na câmera lenta vale toda tecla apertada durante o quadro, mesmo que já tenha sido solta
+            var agora = keys; keys = Object.assign({}, keys); Object.keys(apertadas).forEach(function (k) { keys[k] = true; });
+            atualizar(10); keys = agora; apertadas = {};
+          }
+          if (estagio === 3) desenhar();
+        }, 500);
       } else {
         // passo fixo de 60 quadros por segundo: a velocidade é a mesma em telas de 60, 120 ou 144 Hz
         var ultimo = 0, acum = 0;
@@ -192,12 +197,35 @@ window.Widgets = (function () {
       // ev.code vale para qualquer layout de teclado; ev.key cobre o resto
       var k = CODIGOS[ev.code];
       if (!k) { var kk = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key; if (/^Arrow/.test(kk) || "wasd".indexOf(kk) >= 0 && kk.length === 1) k = kk; }
-      if (k) { keys[k] = v; ev.preventDefault(); }
+      if (k) { keys[k] = v; if (v) apertadas[k] = true; ev.preventDefault(); }
     }
     canvas.addEventListener("mouseenter", function () { canvas.focus({ preventScroll: true }); });
     canvas.addEventListener("keydown", function (e) { tecla(e, true); });
     canvas.addEventListener("keyup", function (e) { tecla(e, false); });
     canvas.addEventListener("blur", function () { keys = {}; });
+    // Sem precisar clicar: com o jogo pelo menos metade visível, setas e WASD controlam o jogo,
+    // a não ser que a pessoa esteja digitando (campo de texto ou editor de código).
+    var visivel = false;
+    if (window.IntersectionObserver) {
+      new IntersectionObserver(function (es) { visivel = es[0].intersectionRatio >= 0.5; if (!visivel) keys = {}; }, { threshold: [0, 0.5, 1] }).observe(canvas);
+    }
+    function digitando() {
+      var a = document.activeElement;
+      if (!a) return false;
+      // caixa de seleção e botões não contam: só campos onde se escreve
+      if (a.tagName === "INPUT") return /^(text|search|email|number|password|url|tel|)$/i.test(a.type || "");
+      return a.tagName === "TEXTAREA" || a.tagName === "SELECT" || a.isContentEditable;
+    }
+    function teclaGlobal(e) {
+      if (!canvas.isConnected) { document.removeEventListener("keydown", teclaGlobal); document.removeEventListener("keyup", teclaGlobal); return; }
+      if (e.target === canvas) return; // o próprio canvas já trata
+      if (e.type === "keyup") { tecla(e, false); return; } // soltar sempre vale, para não "grudar" tecla
+      if (!visivel || digitando() || e.ctrlKey || e.metaKey || e.altKey) return;
+      tecla(e, true);
+    }
+    document.addEventListener("keydown", teclaGlobal);
+    document.addEventListener("keyup", teclaGlobal);
+    window.addEventListener("blur", function () { keys = {}; });
     var alvo = null;
     function alvoDe(e) { var r = canvas.getBoundingClientRect(); alvo = { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height }; }
     canvas.addEventListener("pointerdown", function (e) { canvas.focus({ preventScroll: true }); if (e.pointerType !== "mouse") { alvoDe(e); try { canvas.setPointerCapture(e.pointerId); } catch (x) {} } });
@@ -205,7 +233,7 @@ window.Widgets = (function () {
     ["pointerup", "pointercancel"].forEach(function (n) { canvas.addEventListener(n, function () { alvo = null; }); });
     function dbtn(txt, key, cls) {
       var b = h("button", { class: cls || "", "aria-label": key, type: "button" }, txt), desde = 0, solta = null;
-      function liga(e) { if (e.cancelable) e.preventDefault(); clearTimeout(solta); keys[key] = true; desde = Date.now(); }
+      function liga(e) { if (e.cancelable) e.preventDefault(); clearTimeout(solta); keys[key] = true; apertadas[key] = true; desde = Date.now(); }
       // um toque rápido ainda anda um pouquinho: a tecla fica "apertada" por pelo menos 140 ms
       function desliga() { clearTimeout(solta); solta = setTimeout(function () { keys[key] = false; }, Math.max(0, 140 - (Date.now() - desde))); }
       if (window.PointerEvent) {

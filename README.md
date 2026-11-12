@@ -8,8 +8,10 @@ Site estático: HTML + JS puro. O Python roda no navegador do aluno (Pyodide); o
 2. Settings → Pages → Deploy from a branch → `main` / root.
 3. Pronto: `https://SEU-USUARIO.github.io/NOME-DO-REPO/`.
 
-## Reusar a cada período
-- `js/conteudo.js`: `BYTE_CONFIG.periodo` e **`storagePrefix`** (mude para o histórico dos alunos começar do zero), história (`BYTE_HISTORIA`), lições, projeto e recursos.
+## Reusar em outros períodos
+O site não mostra período em lugar nenhum, então pode ser publicado igual a cada semestre.
+- `js/conteudo.js`: história (`BYTE_HISTORIA`), lições, projeto e recursos.
+- `storagePrefix` só precisa mudar se você quiser zerar o progresso salvo em todos os navegadores (por exemplo, nos computadores compartilhados do Grad 5).
 - `js/desafios.js`: desafios, testes, dicas e solução de referência.
 - Imagens opcionais: `BYTE_CONFIG.imagens` (banner, Troia, pasta de adesivos `1.png` a `8.png`).
 

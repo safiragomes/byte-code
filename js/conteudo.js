@@ -1,16 +1,15 @@
 /* ============================================================================
-   CONTEÚDO DO BYTE CODE  —  é aqui que você edita a cada período.
+   CONTEÚDO DO BYTE CODE: é aqui que você edita textos, lições e recursos.
    Textos usam um markdown simples: **negrito**, *itálico*, `código`, [texto](url),
    listas com "- " e blocos de código com três crases.
    Blocos de lição (t): md | byte | callout | code | codigo | multi | quiz | widget | links | desafio
    ============================================================================ */
 window.BYTE_CONFIG = {
   titulo: "Byte Code",
-  capitulo: "Capítulo 7",
   subtitulo: "A Fase Secreta de Troia",
-  disciplina: "Introdução à Programação · Monitoria",
-  periodo: "2026.2",
-  // Mude o prefixo a cada período para o histórico dos alunos começar do zero.
+  disciplina: "Introdução à Programação",
+  // Nome interno de onde o progresso fica salvo no navegador. Não precisa mudar entre períodos.
+  // Só troque se quiser zerar o progresso de todo mundo (ex.: computadores compartilhados do Grad 5).
   storagePrefix: "bytecode.2026.2",
   // De onde o Python (Pyodide) é carregado, em ordem: cópia local (pasta pyodide/) e depois o CDN.
   pyodide: ["pyodide/", "https://cdn.jsdelivr.net/pyodide/v0.29.5/full/"],
@@ -21,14 +20,14 @@ window.BYTE_CONFIG = {
   imagens: { banner: "assets/mundo-pixel-banner.jpg", troia: "assets/troia.png", adesivosPasta: "assets/adesivos" }
 };
 
-/* ----- A nova aventura (capítulo 7). Edite livremente. ----- */
+/* ----- A aventura. Edite livremente. ----- */
 window.BYTE_HISTORIA = {
-  chamada: "Byte achou algo no fundo do laboratório.",
+  chamada: "Byte achou algo no fundo do Grad 5.",
   paragrafos: [
-    "Ao reabrir o antigo laboratório do CIn, Byte tropeçou num cartucho empoeirado com a etiqueta `TROIA.EXE`. Troia nunca foi apagado: depois da batalha das listas de recursão, ele se escondeu num jogo inacabado, o **Mundo Pixel**, onde cada bug sem correção o deixa mais forte.",
+    "Ao reabrir o Grad 5, no CIn, Byte tropeçou num cartucho empoeirado com a etiqueta `TROIA.EXE`. Troia nunca foi apagado: depois da batalha das listas de recursão, ele se escondeu num jogo inacabado, o **Mundo Pixel**, onde cada bug sem correção o deixa mais forte.",
     "Para entrar, Byte precisa encher a mochila com **8 adesivos de conhecimento**. Você é a pessoa monitora de confiança dele: aprenda cada conceito, conserte os bugs e, no fim, construa a sua própria fase do Mundo Pixel. Esse é o projeto final."
   ],
-  fase3: "As fases construídas por turmas anteriores ficaram guardadas nos arquivos do Mundo Pixel. A sua entra na galeria."
+  fase: "As fases construídas por turmas anteriores ficaram guardadas nos arquivos do Mundo Pixel. A sua entra na galeria."
 };
 
 window.BYTE_FASES = [
@@ -178,8 +177,8 @@ window.BYTE_LICOES = [
         codigo: "import pygame\n\npygame.init()\nscreen = pygame.display.set_mode((800, 600))\nclock = pygame.time.Clock()\n\nx = 100\nrunning = True\nwhile running:                       # o laço do jogo\n    clock.tick(60)                   # 60 quadros por segundo\n\n    for event in pygame.event.get(): # 1) eventos\n        if event.type == pygame.QUIT:\n            running = False\n\n    x += 2                           # 2) atualizar o estado\n\n    screen.fill((0, 0, 0))           # 3) desenhar\n    pygame.draw.rect(screen, (50, 120, 255), (x, 200, 50, 50))\n    pygame.display.update()\n\npygame.quit()" },
       { t: "md", md: "Todo jogo gira em torno de um **laço**: a cada quadro ele lê os eventos, atualiza os objetos e desenha. Brinque com uma versão simplificada do template e use o modo câmera lenta para ver cada etapa:" },
       { t: "widget", nome: "loop" },
-      { t: "links", titulo: "Vídeos de apoio", itens: [
-        { titulo: "Bibliotecas em Python", url: "https://www.youtube.com/watch?v=oOUyhGNib2Q", desc: "Vídeo de apoio" },
+      { t: "links", titulo: "Para assistir", itens: [
+        { titulo: "Bibliotecas em Python", url: "https://www.youtube.com/watch?v=oOUyhGNib2Q" },
         { titulo: "Playlist de Pygame", url: "https://youtube.com/playlist?list=PLJ8PYFcmwFOxtJS4EZTGEPxMEo4YdbxdQ", desc: "Do primeiro quadrado até um jogo completo" }
       ] },
       { t: "quiz", id: "q1", pergunta: "O que `from random import choice` permite?",
@@ -206,7 +205,7 @@ window.BYTE_LICOES = [
       { t: "codigo", titulo: "Assim o template do jogo importa tudo (main.py)",
         codigo: "from constants import BLACK, FPS, SCREEN_HEIGHT, SCREEN_WIDTH, WINDOW_TITLE\nfrom classes.player import Player\nfrom classes.enemy import Enemy\nfrom classes.coin import Coin\nfrom classes.text import Text\nfrom utils.collision import check_collision\n\n\ndef main():\n    ...   # o jogo começa aqui\n\n\nif __name__ == \"__main__\":   # só roda main() quando você executa este arquivo\n    main()" },
       { t: "callout", tipo: "atencao", md: "Cuidado com **import circular**: se `a.py` importa `b.py` e `b.py` importa `a.py`, o Python se perde. Regra de bolso: classes mais simples (como `GameObject`) não devem importar as mais específicas." },
-      { t: "links", titulo: "Vídeo de apoio", itens: [{ titulo: "Modularização em Python", url: "https://youtu.be/eXytYiz-xhM", desc: "Vídeo de apoio" }] },
+      { t: "links", titulo: "Para assistir", itens: [{ titulo: "Modularização em Python", url: "https://youtu.be/eXytYiz-xhM" }] },
       { t: "quiz", id: "q1", pergunta: "Qual comando importa a classe `Player` do arquivo `classes/player.py`?",
         opcoes: ["import classes.player.py", "from classes.player import Player", "from player.py import classes", "include Player"],
         certa: 1, explicacao: "O caminho usa pontos no lugar de barras e não leva `.py`." },
@@ -227,8 +226,8 @@ window.BYTE_LICOES = [
         codigo: "# Configurar usuário (uma vez só)\ngit config --global user.name \"Seu Nome\"\ngit config --global user.email \"seuemail@example.com\"\n\n# Baixar o template do jogo\ngit clone https://github.com/safiracode/Game_Template.git\n\n# Ou começar do zero\ngit init\n\n# Ver o que mudou\ngit status\n\n# Preparar arquivos para o commit\ngit add arquivo.py     # ou: git add .\n\n# Criar o commit (checkpoint)\ngit commit -m \"mensagem do commit\"\n\n# Conectar ao GitHub e enviar\ngit remote add origin https://github.com/usuario/repositorio.git\ngit push -u origin main\n\n# Baixar o que os colegas enviaram\ngit pull" },
       { t: "callout", tipo: "dica", md: "**Trabalhando em grupo:** dê `git pull` **antes** de começar e antes de enviar, e faça commits pequenos com mensagens que expliquem o que mudou (“adiciona inimigo”, e não “mudanças”). Se preferir, o **GitHub Desktop** faz tudo isso sem terminal." },
       { t: "callout", tipo: "atencao", md: "Crie um `.gitignore` com `__pycache__/`, `*.pyc`, `.venv/` e `.env`. Esses arquivos não devem ir para o repositório, e nunca versione senhas ou chaves." },
-      { t: "links", titulo: "Vídeos de apoio", itens: [
-        { titulo: "Git e GitHub do zero: guia completo", url: "https://www.youtube.com/watch?v=pyM5QLS2h6M", desc: "Fernanda Kipper. O que são Git e GitHub e os comandos principais" },
+      { t: "links", titulo: "Para assistir", itens: [
+        { titulo: "Git e GitHub do zero: guia completo", url: "https://www.youtube.com/watch?v=pyM5QLS2h6M", desc: "Com Fernanda Kipper: o que são Git e GitHub e os comandos principais" },
         { titulo: "Conceito de Git e GitHub", url: "https://www.youtube.com/watch?v=-l4Aa8wef8s", desc: "Comece por este para entender os comandos" },
         { titulo: "Git no VS Code", url: "https://www.youtube.com/watch?v=3-3gGSrWd00", desc: "Usando o Git pelo editor" }
       ] },
@@ -305,32 +304,34 @@ window.BYTE_PROJETO = {
 /* ============================================================================
    RECURSOS (página “Recursos”)
    ============================================================================ */
+// Cada grupo vira uma aba na página inicial e em "Recursos".
+// Vídeos: qualquer link do YouTube (vídeo ou playlist) toca dentro do site. "licao" liga o vídeo à lição.
 window.BYTE_RECURSOS = [
-  { grupo: "Praticar no Dikastis", itens: [
-    { titulo: "Questão 1 — Classe e Objeto", url: "https://dikastis.com.br/problems/01KSP02HJBVW2739SDK6VBGZSN" },
-    { titulo: "Questão 2 — Atributos e Métodos", url: "https://dikastis.com.br/problems/01KSP3H9YEVXCMGV151WXRNZ8A" },
-    { titulo: "Questão 3 — Encapsulamento", url: "https://dikastis.com.br/problems/01KSP807WF1CA377GS8VTPVG64" },
-    { titulo: "Questão 4 — Herança e Polimorfismo", url: "https://dikastis.com.br/problems/01KSQ5P8J6G1TR5ME0PM2HDC3Z" },
-    { titulo: "Questão 5 — União de todos os conceitos", url: "https://dikastis.com.br/problems/01KT2QYD0PAJB4XYN3T8GH3HVZ" },
-    { titulo: "DJ das Festas", url: "https://dikastis.cin.ufpe.br/problems/01GY8YMFZ0K8T7QFF5HDX3QYPP", desc: "Extra · Fácil" },
-    { titulo: "Sonic: CIn Zone Act I", url: "https://dikastis.cin.ufpe.br/problems/01GE67JYB7WV3ZP38AMDYK0CB0", desc: "Extra · Média" },
-    { titulo: "Torneio do Poder", url: "https://dikastis.cin.ufpe.br/problems/01GE0Z65PEB58HDPDRAABWD075", desc: "Extra · Média" }
+  { tipo: "videos", nome: "Vídeos", itens: [
+    { titulo: "Programação Orientada a Objetos", url: "https://www.youtube.com/watch?v=QAwNvlEd1aM", licao: "classe-objeto", desc: "Base das lições 1 a 4" },
+    { titulo: "Bibliotecas em Python", url: "https://www.youtube.com/watch?v=oOUyhGNib2Q", licao: "bibliotecas" },
+    { titulo: "Playlist de Pygame", url: "https://youtube.com/playlist?list=PLJ8PYFcmwFOxtJS4EZTGEPxMEo4YdbxdQ", licao: "bibliotecas", desc: "Do primeiro quadrado até um jogo completo" },
+    { titulo: "Modularização em Python", url: "https://youtu.be/eXytYiz-xhM", licao: "modularizacao" },
+    { titulo: "Conceito de Git e GitHub", url: "https://www.youtube.com/watch?v=-l4Aa8wef8s", licao: "git-github", desc: "Comece por este para entender os comandos" },
+    { titulo: "Git no VS Code", url: "https://www.youtube.com/watch?v=3-3gGSrWd00", licao: "git-github", desc: "Usando o Git pelo editor" },
+    { titulo: "Git e GitHub do zero: guia completo", url: "https://www.youtube.com/watch?v=pyM5QLS2h6M", licao: "git-github", desc: "Com Fernanda Kipper" }
   ] },
-  { grupo: "Vídeos de apoio", itens: [
-    { titulo: "Programação Orientada a Objetos", url: "https://www.youtube.com/watch?v=QAwNvlEd1aM" },
-    { titulo: "Bibliotecas em Python", url: "https://www.youtube.com/watch?v=oOUyhGNib2Q" },
-    { titulo: "Playlist de Pygame", url: "https://youtube.com/playlist?list=PLJ8PYFcmwFOxtJS4EZTGEPxMEo4YdbxdQ" },
-    { titulo: "Modularização", url: "https://youtu.be/eXytYiz-xhM" },
-    { titulo: "Conceito de Git e GitHub", url: "https://www.youtube.com/watch?v=-l4Aa8wef8s" },
-    { titulo: "Git no VS Code", url: "https://www.youtube.com/watch?v=3-3gGSrWd00" },
-    { titulo: "Git e GitHub do zero: guia completo", url: "https://www.youtube.com/watch?v=pyM5QLS2h6M", desc: "Fernanda Kipper" }
+  { tipo: "dikastis", nome: "Exercícios no Dikastis", itens: [
+    { titulo: "Classe e Objeto", url: "https://dikastis.com.br/problems/01KSP02HJBVW2739SDK6VBGZSN", desafio: "d1" },
+    { titulo: "Atributos e Métodos", url: "https://dikastis.com.br/problems/01KSP3H9YEVXCMGV151WXRNZ8A", desafio: "d2" },
+    { titulo: "Encapsulamento", url: "https://dikastis.com.br/problems/01KSP807WF1CA377GS8VTPVG64", desafio: "d3" },
+    { titulo: "Herança e Polimorfismo", url: "https://dikastis.com.br/problems/01KSQ5P8J6G1TR5ME0PM2HDC3Z", desafio: "d4" },
+    { titulo: "Todos os conceitos juntos", url: "https://dikastis.com.br/problems/01KT2QYD0PAJB4XYN3T8GH3HVZ", desafio: "d5" },
+    { titulo: "DJ das Festas", url: "https://dikastis.cin.ufpe.br/problems/01GY8YMFZ0K8T7QFF5HDX3QYPP", extra: "Fácil" },
+    { titulo: "Sonic: CIn Zone Act I", url: "https://dikastis.cin.ufpe.br/problems/01GE67JYB7WV3ZP38AMDYK0CB0", extra: "Média" },
+    { titulo: "Torneio do Poder", url: "https://dikastis.cin.ufpe.br/problems/01GE0Z65PEB58HDPDRAABWD075", extra: "Média" }
   ] },
-  { grupo: "Arte e mapas do jogo", itens: [
-    { titulo: "Pixilart", url: "https://www.pixilart.com/", desc: "Sprites em pixel art" },
-    { titulo: "Tiled", url: "https://www.mapeditor.org/", desc: "Mapas em tiles" }
+  { tipo: "projeto", nome: "Projeto final", itens: [
+    { titulo: "Template do jogo", url: "https://github.com/safiracode/Game_Template", desc: "O repositório base no GitHub. Comece clonando este." },
+    { titulo: "Galeria de projetos", url: "https://app.notion.com/p/Galeria-de-Projetos-2023-1-2024-2-240882df4e9380e4b058d96194ed1486", desc: "Jogos feitos pelas turmas anteriores, desde 2023.1" }
   ] },
-  { grupo: "Projeto final", itens: [
-    { titulo: "Template do jogo (GitHub)", url: "https://github.com/safiracode/Game_Template", desc: "Estrutura base do projeto" },
-    { titulo: "Galeria de projetos (2023.1 a 2025.2)", url: "https://app.notion.com/p/Galeria-de-Projetos-2023-1-2024-2-240882df4e9380e4b058d96194ed1486", desc: "Inspiração: jogos de períodos anteriores" }
+  { tipo: "arte", nome: "Arte e mapas", itens: [
+    { titulo: "Pixilart", url: "https://www.pixilart.com/", desc: "Editor de pixel art no navegador, para os sprites" },
+    { titulo: "Tiled", url: "https://www.mapeditor.org/", desc: "Editor de mapas em tiles, para montar as fases" }
   ] }
 ];

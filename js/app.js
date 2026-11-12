@@ -6,6 +6,9 @@
   var h = U.h, mdEl = U.mdEl, esc = U.esc;
   var CFG = window.BYTE_CONFIG, LICOES = window.BYTE_LICOES, DES = window.BYTE_DESAFIOS;
   var HIST_MAX = 300;
+  // macOS e iPad usam Cmd; o resto, Ctrl
+  var MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || "");
+  var TECLA = MAC ? "⌘" : "Ctrl";
   var licBy = {}, desBy = {};
   LICOES.forEach(function (l) { licBy[l.id] = l; });
   DES.forEach(function (d) { desBy[d.id] = d; });
@@ -92,6 +95,16 @@
       h("div", { class: "bubble" }, h("div", { class: "who" }, "Byte"), md ? mdEl(md) : null, extra || null));
   }
 
+  /* Com a barra de rolagem invisível, um degradê no pé avisa que a área tem mais conteúdo. */
+  function temMais(el) {
+    function confere() { el.classList.toggle("tem-mais", el.scrollHeight - el.scrollTop - el.clientHeight > 6); }
+    el.addEventListener("scroll", confere, { passive: true });
+    el.addEventListener("load", confere, true); // imagens que terminam de carregar mudam a altura
+    if (window.ResizeObserver) new ResizeObserver(confere).observe(el);
+    if (window.MutationObserver) new MutationObserver(confere).observe(el, { childList: true, subtree: true });
+    setTimeout(confere, 50);
+  }
+
   /* ---------------------------------------------------------- Editor */
   var EDITORS = [];
   function makeEditor(parent, o) {
@@ -100,7 +113,7 @@
     if (window.CodeMirror) {
       var cm = CodeMirror(parent, {
         value: o.value || "", mode: "python", lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false,
-        readOnly: !!o.readOnly, viewportMargin: Infinity, lineWrapping: false, autoCloseBrackets: !o.readOnly,
+        readOnly: !!o.readOnly, viewportMargin: Infinity, lineWrapping: false, scrollbarStyle: "null", autoCloseBrackets: !o.readOnly,
         gutters: ["CodeMirror-linenumbers", "erro-gutter"],
         extraKeys: {
           Tab: function (c) { if (c.somethingSelected()) c.indentSelection("add"); else c.replaceSelection("    ", "end"); },
@@ -207,7 +220,7 @@
     return card;
   }
   function memPanel(objs) {
-    var root = h("div", { class: "mem" }, h("span", { class: "lbl" }, "Memória do Byte · o que existe depois de rodar"));
+    var root = h("div", { class: "mem" }, h("span", { class: "lbl" }, "Memória do Byte: o que existe depois de rodar"));
     var vars = objs.filter(function (o) { return o.simple !== undefined; });
     if (vars.length) root.appendChild(h("div", { class: "vars" }, vars.map(function (v) { return h("span", { class: "var" }, h("b", null, v.name + " = "), h("span", null, v.simple)); })));
     var grade = h("div", { class: "mem-grid" });
@@ -244,7 +257,7 @@
     var eds = {}, wraps = {}, atual = files[files.length - 1].nome;
     if (multi) atual = b.entry;
     var root = h("div", { class: "cb" });
-    var btnRun = h("button", { class: "btn btn-run btn-sm", title: "Ctrl+Enter" }, "Executar");
+    var btnRun = h("button", { class: "btn btn-run btn-sm", title: TECLA + "+Enter executa" }, "Executar");
     var btnReset = h("button", { class: "btn btn-sm btn-ghost", title: "Voltar ao código original" }, "↺ Original");
     root.appendChild(h("div", { class: "cb-head" }, h("span", { class: "cb-title" }, b.titulo || "Código"), btnReset, btnRun));
     var tabs = null;
@@ -327,11 +340,115 @@
     return root;
   }
 
+  function linkExt(i) {
+    return h("a", { class: "link", href: i.url, target: "_blank", rel: "noopener noreferrer" }, h("span", null, i.titulo, i.desc ? h("small", { html: U.inline(i.desc) }) : null), h("span", { class: "ext" }, h("span", { class: "sr" }, " (abre em outra aba)")));
+  }
+  // vídeos do YouTube tocam no próprio site; o resto vira link
   function linksBlock(b) {
-    return h("div", null, b.titulo ? h("div", { class: "lbl", style: "margin-top:16px" }, b.titulo) : null,
-      h("div", { class: "links" }, b.itens.map(function (i) {
-        return h("a", { class: "link", href: i.url, target: "_blank", rel: "noopener noreferrer" }, h("span", { class: "ic" }, "↗"), h("span", null, i.titulo, i.desc ? h("small", null, i.desc) : null));
-      })));
+    var vids = b.itens.filter(function (i) { return ytInfo(i.url); });
+    var outros = b.itens.filter(function (i) { return !ytInfo(i.url); });
+    return h("div", { class: "links-bloco" }, b.titulo ? h("h3", { class: "bloco-t" }, b.titulo) : null,
+      vids.length ? videoPlayer(vids, { compacto: true }) : null,
+      outros.length ? h("div", { class: "links" }, outros.map(linkExt)) : null);
+  }
+
+  /* ------------------------------------------------------------ vídeos */
+  function ytInfo(url) {
+    var v = /(?:youtu\.be\/|[?&]v=|\/embed\/)([\w-]{11})/.exec(url || "");
+    if (v) return { id: v[1] };
+    var l = /[?&]list=([\w-]+)/.exec(url || "");
+    return l ? { lista: l[1] } : null;
+  }
+  function ytEmbed(info) {
+    var base = "https://www.youtube-nocookie.com/embed/";
+    return (info.id ? base + info.id + "?" : base + "videoseries?list=" + info.lista + "&") + "autoplay=1&rel=0";
+  }
+  // Mostra só a capa; o YouTube carrega quando a pessoa aperta play (página mais leve).
+  function videoPlayer(vids, opts) {
+    opts = opts || {};
+    var atual = 0;
+    var tela = h("div", { class: "vp-tela" });
+    var leg = h("div", { class: "vp-leg" });
+    var lista = vids.length > 1 ? h("ol", { class: "vp-lista" }) : null;
+    function capa(i) {
+      var v = vids[i], info = ytInfo(v.url);
+      tela.innerHTML = "";
+      tela.appendChild(h("button", { class: "vp-capa", type: "button", "aria-label": "Assistir: " + v.titulo, onclick: function () { toca(i); } },
+        info.id ? h("img", { src: "https://i.ytimg.com/vi/" + info.id + "/hqdefault.jpg", alt: "", loading: "lazy" }) : h("span", { class: "vp-pl" }, h("b", null, v.titulo), "Playlist do YouTube"),
+        h("span", { class: "vp-play", "aria-hidden": "true" })));
+    }
+    function toca(i) {
+      var v = vids[i];
+      tela.innerHTML = "";
+      tela.appendChild(h("iframe", { src: ytEmbed(ytInfo(v.url)), title: v.titulo, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: true, referrerpolicy: "strict-origin-when-cross-origin" }));
+    }
+    function legenda(i) {
+      var v = vids[i], l = v.licao && licBy[v.licao];
+      leg.innerHTML = "";
+      leg.appendChild(h("b", null, v.titulo));
+      if (v.desc) leg.appendChild(h("span", null, v.desc));
+      leg.appendChild(h("span", { class: "vp-acoes" },
+        l && !opts.compacto ? h("a", { href: "#licao-" + l.id, onclick: navClick("licao-" + l.id) }, "Lição " + l.num + ": " + l.titulo) : null,
+        h("a", { href: v.url, target: "_blank", rel: "noopener noreferrer" }, "Abrir no YouTube")));
+    }
+    function escolhe(i, tocar) {
+      atual = i;
+      if (lista) Array.prototype.forEach.call(lista.children, function (li, k) { li.firstChild.setAttribute("aria-current", k === atual ? "true" : "false"); });
+      if (tocar) toca(i); else capa(i);
+      legenda(i);
+    }
+    if (lista) vids.forEach(function (v, i) {
+      var info = ytInfo(v.url), l = v.licao && licBy[v.licao];
+      lista.appendChild(h("li", null, h("button", { type: "button", onclick: function () { escolhe(i, true); } },
+        h("span", { class: "vp-mini" }, info.id ? h("img", { src: "https://i.ytimg.com/vi/" + info.id + "/mqdefault.jpg", alt: "", loading: "lazy" }) : h("span", null, "Playlist")),
+        h("span", { class: "vp-txt" }, v.titulo, l && !opts.compacto ? h("small", null, "Lição " + l.num + ", " + l.titulo) : v.desc ? h("small", null, v.desc) : null))));
+    });
+    escolhe(0, false);
+    return h("div", { class: "vp" + (lista ? " vp-com-lista" : "") + (opts.compacto ? " compacto" : "") }, h("div", { class: "vp-palco" }, tela, leg), lista);
+  }
+
+  /* ------------------------------------------- recursos (abas por tipo) */
+  var abaRec = "videos";
+  function recursosPainel() {
+    var tabs = h("div", { class: "rec-tabs", role: "tablist", "aria-label": "Tipo de recurso" });
+    var corpo = h("div", { class: "rec-corpo", role: "tabpanel", id: "rec-painel" });
+    var botoes = BYTE_RECURSOS.map(function (g) {
+      return h("button", { class: "rec-tab", type: "button", role: "tab", id: "rec-tab-" + g.tipo, "aria-controls": "rec-painel", onclick: function () { abre(g.tipo); },
+        onkeydown: function (e) {
+          var i = BYTE_RECURSOS.indexOf(g), n = BYTE_RECURSOS.length;
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); var prox = BYTE_RECURSOS[(i + (e.key === "ArrowRight" ? 1 : n - 1)) % n]; abre(prox.tipo); document.getElementById("rec-tab-" + prox.tipo).focus(); }
+        } }, g.nome, h("span", { class: "n" }, g.itens.length));
+    });
+    botoes.forEach(function (b) { tabs.appendChild(b); });
+    function abre(tipo) {
+      abaRec = tipo;
+      var g = BYTE_RECURSOS.filter(function (x) { return x.tipo === tipo; })[0] || BYTE_RECURSOS[0];
+      botoes.forEach(function (b) { var on = b.id === "rec-tab-" + g.tipo; b.setAttribute("aria-selected", on ? "true" : "false"); b.tabIndex = on ? 0 : -1; });
+      corpo.setAttribute("aria-labelledby", "rec-tab-" + g.tipo);
+      corpo.innerHTML = "";
+      corpo.appendChild(g.tipo === "videos" ? videoPlayer(g.itens.filter(function (i) { return ytInfo(i.url); })) : g.tipo === "dikastis" ? listaDikastis(g.itens) : h("div", { class: "link-grid" }, g.itens.map(linkExt)));
+    }
+    abre(abaRec);
+    return h("section", { class: "rec", id: "recursos-painel", "aria-labelledby": "rec-h" },
+      h("div", { class: "rec-topo" }, h("h1", { id: "rec-h" }, "Recursos"), h("p", null, "Vídeos, exercícios e ferramentas que a disciplina indicou.")),
+      tabs, corpo);
+  }
+  // Uma lista só: número, assunto e link. A ligação com o desafio do site aparece só como estado.
+  function listaDikastis(itens) {
+    var trilha = itens.filter(function (i) { return i.desafio; }), extras = itens.filter(function (i) { return !i.desafio; });
+    function linha(i) {
+      var d = i.desafio && desBy[i.desafio], ok = d && P.desafios[d.id] && P.desafios[d.id].passou;
+      return h("li", { class: ok ? "ok" : "" },
+        h("span", { class: "dik-n" }, d ? d.num : ""),
+        h("a", { href: i.url, target: "_blank", rel: "noopener noreferrer" }, i.titulo, h("span", { class: "sr" }, " (abre o Dikastis em outra aba)")),
+        h("span", { class: "dik-st" }, d ? (ok ? "Desafio feito aqui" : "") : i.extra),
+        h("span", { class: "ext", "aria-hidden": "true" }));
+    }
+    return h("div", { class: "dik" },
+      h("p", { class: "dik-intro" }, "Cada questão tem um desafio de mesmo número aqui no site. Faça o desafio primeiro, com a ajuda do Byte, e depois envie a questão no Dikastis."),
+      h("ol", { class: "dik-lista" }, trilha.map(linha)),
+      extras.length ? h("h3", null, "Para treinar mais") : null,
+      extras.length ? h("ul", { class: "dik-lista" }, extras.map(linha)) : null);
   }
 
   /* ------------------------------------------------------------ rotas */
@@ -341,11 +458,26 @@
     route(name);
   }
   window.addEventListener("hashchange", function () { route(location.hash.replace("#", "")); });
+  // Clique normal navega dentro do site; Ctrl/⌘/Shift + clique e o botão do meio ficam com o navegador (nova guia/janela).
+  function navClick(nome) {
+    return function (e) {
+      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || e.button) return;
+      e.preventDefault(); go(nome);
+    };
+  }
+  // link com cara de botão: por ser <a href>, abre em nova guia com Ctrl+clique
+  function linkBtn(nome, cls, conteudo) {
+    return h("a", { class: "btn " + (cls || ""), href: "#" + nome, onclick: navClick(nome) }, conteudo);
+  }
+  // "Voltar" leva à página de onde a pessoa veio; se ela abriu este link direto, vai para o destino padrão
+  var visitas = 0;
+  function voltar(padrao) { if (visitas > 1) history.back(); else go(padrao); }
 
   function route(name) {
     name = name || "inicio";
     if (name === current && view && view.children.length) return;
     current = name;
+    visitas++;
     EDITORS.length = 0;
     view.innerHTML = ""; view.className = "view";
     var m;
@@ -366,27 +498,27 @@
   /* --------------------------------------------------- barra lateral/topo */
   function dot(done, parcial) { return h("span", { class: "dot " + (done ? "on" : parcial ? "half" : "") }); }
   function navA(nome, titulo, sub, n, d, p) {
-    return h("a", { class: "nav-a" + (current === nome ? " on" : ""), href: "#" + nome, onclick: function (e) { e.preventDefault(); go(nome); } },
-      n != null ? h("span", { class: "n" }, n) : null, h("span", null, titulo, sub ? h("small", null, sub) : null), d != null ? dot(d, p) : null);
+    return h("a", { class: "nav-a" + (current === nome ? " on" : ""), href: "#" + nome, onclick: navClick(nome) },
+      h("span", { class: "n" }, n != null ? n : ""), h("span", null, titulo, sub ? h("small", null, sub) : null), d != null ? dot(d, p) : null);
   }
   function renderSide() {
     var s = document.getElementById("side"); s.innerHTML = "";
-    s.appendChild(navA("inicio", "Início", "A mochila e a história", "•"));
-    s.appendChild(h("div", { class: "nav-sec" }, "Fase 1 · Aprendendo"));
+    s.appendChild(navA("inicio", "Início", "História e mochila"));
+    s.appendChild(navA("recursos", "Recursos", "Vídeos, Dikastis e ferramentas"));
+    s.appendChild(h("div", { class: "nav-sec" }, "Fase 1: aprendendo"));
     LICOES.forEach(function (l) { var st = P.licoes[l.id]; s.appendChild(navA("licao-" + l.id, l.titulo, l.local, l.num, st && st.done, st && Object.keys(st.quiz || {}).length > 0)); });
-    s.appendChild(h("div", { class: "nav-sec" }, "Fase 2 · Praticando"));
+    s.appendChild(h("div", { class: "nav-sec" }, "Fase 2: praticando"));
     DES.forEach(function (d) { var st = P.desafios[d.id]; s.appendChild(navA("desafio-" + d.id, d.titulo, d.conceito, d.num, st && st.passou, st && st.tentativas > 0)); });
-    s.appendChild(h("div", { class: "nav-sec" }, "Fase 3 · Fase Secreta"));
-    s.appendChild(navA("projeto", "Projeto final", "Do template ao seu jogo", "◆"));
-    s.appendChild(h("div", { class: "nav-sec" }, "Mais"));
-    s.appendChild(navA("recursos", "Recursos", "Vídeos, Dikastis, ferramentas", "+"));
-    s.appendChild(navA("historico", "Meu histórico", "Tentativas e conquistas", "≡"));
+    s.appendChild(h("div", { class: "nav-sec" }, "Fase 3: a fase secreta"));
+    s.appendChild(navA("projeto", "Projeto final", "Do template ao seu jogo"));
+    s.appendChild(h("div", { class: "nav-sec" }, "Seu progresso"));
+    s.appendChild(navA("historico", "Meu histórico", "Tentativas e conquistas"));
   }
   function renderTop() {
     var t = document.getElementById("top"); t.innerHTML = "";
     var xp = calcXP(), pc = pctGeral();
     t.appendChild(h("button", { class: "btn btn-sm menu-btn", "aria-label": "Mostrar ou esconder a trilha", title: "Mostrar ou esconder a trilha", onclick: function () { var mobile = window.matchMedia("(max-width: 860px)").matches; if (mobile) document.getElementById("side").classList.toggle("open"); else { var sh = document.querySelector(".shell"); sh.classList.toggle("side-off"); try { localStorage.setItem(CFG.storagePrefix + ":side-off", sh.classList.contains("side-off") ? "1" : ""); } catch (e) {} setTimeout(refreshEditors, 250); } } }, "☰"));
-    t.appendChild(h("a", { class: "brand", href: "#inicio", onclick: function (e) { e.preventDefault(); go("inicio"); } }, h("img", { src: av("neutro"), alt: "" }), h("span", null, h("b", null, CFG.titulo), h("small", null, CFG.capitulo + " · " + CFG.periodo))));
+    t.appendChild(h("a", { class: "brand", href: "#inicio", onclick: navClick("inicio") }, h("img", { src: av("neutro"), alt: "" }), h("span", null, h("b", null, CFG.titulo), h("small", null, "Monitoria de IP"))));
     t.appendChild(h("span", { class: "top-spacer" }));
     t.appendChild(pyStatus());
     t.appendChild(h("div", { class: "stat prog" }, h("span", null, "Mochila " + pc + "%"), h("div", { class: "bar" }, h("i", { style: "width:" + pc + "%" }))));
@@ -404,7 +536,7 @@
         var img = h("img", { src: CFG.imagens.adesivosPasta + "/" + l.num + ".png", alt: "", onerror: function () { img.replaceWith(l.adesivo.emoji); } });
         emoji = h("span", { class: "em" }, img);
       }
-      g.appendChild(h("a", { class: "slot" + (on ? " on" : ""), href: "#licao-" + l.id, onclick: function (e) { e.preventDefault(); go("licao-" + l.id); }, title: on ? "Adesivo colado" : "Conclua a lição " + l.num + " para colar" }, emoji, h("b", null, l.adesivo.nome), h("small", null, "Lição " + l.num)));
+      g.appendChild(h("a", { class: "slot" + (on ? " on" : ""), href: "#licao-" + l.id, onclick: navClick("licao-" + l.id), title: on ? "Adesivo colado" : "Conclua a lição " + l.num + " para colar" }, emoji, h("b", null, l.adesivo.nome), h("small", null, "Lição " + l.num)));
     });
     return g;
   }
@@ -412,51 +544,59 @@
     var H = BYTE_HISTORIA, xp = calcXP();
     var proxima = P.ultima && P.ultima !== "inicio" ? P.ultima : "licao-" + LICOES[0].id;
     var temProgresso = !!P.ultima;
-    var temBanner = !!(CFG.imagens && CFG.imagens.banner);
-    if (temBanner) view.appendChild(h("div", { class: "hero-banner", style: "background-image:url('" + CFG.imagens.banner + "')", role: "img", "aria-label": "Mundo Pixel" },
-      h("div", { class: "hb-text" }, h("div", { class: "kicker" }, CFG.capitulo + " · " + CFG.disciplina.split(" · ")[0]), h("h1", null, h("em", null, CFG.subtitulo)))));
-    var nomeForm = h("form", { class: "nome-form", onsubmit: function (e) { e.preventDefault(); P.nome = inp.value.trim(); saveP(); route_force(); } });
-    var inp = h("input", { class: "inp", id: "nome", placeholder: "Seu nome", value: P.nome || "", maxlength: 30, "aria-label": "Como o Byte deve te chamar?" });
-    nomeForm.appendChild(inp); nomeForm.appendChild(h("button", { class: "btn btn-sm", type: "submit" }, P.nome ? "Trocar nome" : "Salvar nome"));
-    view.appendChild(h("section", { class: "hero" },
+    var banner = CFG.imagens && CFG.imagens.banner;
+    var proxLic = proxima.indexOf("licao-") === 0 && licBy[proxima.slice(6)];
+
+    view.appendChild(h("section", { class: "capa" + (banner ? "" : " sem-arte"), style: banner ? "background-image:url('" + banner + "')" : null },
+      h("div", { class: "capa-txt" },
+        h("p", { class: "capa-cap" }, "Monitoria de " + CFG.disciplina),
+        h("h1", null, CFG.subtitulo),
+        h("p", { class: "capa-lead" }, (P.nome ? "Oi, " + P.nome + ". " : "") + H.chamada + " Oito lições, cinco bugs para consertar e, no fim, o seu jogo."),
+        h("div", { class: "row" },
+          linkBtn(proxima, "btn-primary", temProgresso ? (proxLic ? "Continuar na lição " + proxLic.num : "Continuar de onde parou") : "Começar pela lição 1"),
+          linkBtn("recursos", "", "Ver os vídeos")))));
+
+    // sem nome salvo: uma faixa simples logo abaixo da capa (trocar depois fica em "Dados")
+    if (!P.nome) {
+      var inp = h("input", { class: "inp", id: "nome", placeholder: "Seu nome", maxlength: 30, autocomplete: "given-name" });
+      view.appendChild(h("form", { class: "nome-faixa", onsubmit: function (e) { e.preventDefault(); if (!inp.value.trim()) { inp.focus(); return; } P.nome = inp.value.trim(); saveP(); route_force(); } },
+        h("label", { for: "nome" }, "Como o Byte deve te chamar?"), inp, h("button", { class: "btn btn-sm", type: "submit" }, "Salvar nome")));
+    }
+
+    view.appendChild(h("section", { class: "historia" },
+      h("figure", { class: "quadro" }, h("img", { src: "assets/byte-volta.jpg", alt: "Byte correndo de volta pela porta do CIn, dizendo: vocês não imaginam o prazer que é estar de volta!" })),
       h("div", null,
-        temBanner ? null : h("div", { class: "kicker" }, CFG.capitulo + " · " + CFG.disciplina),
-        temBanner ? null : h("h1", null, h("em", null, CFG.subtitulo)),
-        h("p", { class: "lead" }, P.nome ? "Oi, " + P.nome + "! " + H.chamada : H.chamada),
-        h("div", { class: "story" }, H.paragrafos.map(function (p) { return mdEl(p); })),
-        h("div", { class: "row", style: "margin-top:14px" },
-          h("button", { class: "btn btn-primary", onclick: function () { go(proxima); } }, temProgresso ? "Continuar de onde parou" : "Começar a aventura"),
-          h("button", { class: "btn", onclick: function () { go("recursos"); } }, "Recursos")),
-        nomeForm),
-      h("div", { class: "hero-img" }, h("img", { src: "assets/byte-volta.jpg", alt: "Byte correndo de volta pela porta do CIn" }))));
-    view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "A mochila do Byte"), h("span", null, "Cada lição concluída cola um adesivo. " + xp + " petiscos · " + rank(xp))));
+        h("h2", null, "A história até aqui"),
+        h("div", { class: "story" }, H.paragrafos.map(function (p) { return mdEl(p); })))));
+
+    view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "A mochila do Byte"), h("span", null, "Cada lição concluída cola um adesivo. Você tem " + xp + " petiscos, nível " + rank(xp) + ".")));
     view.appendChild(mochila());
     view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "As três fases")));
     var licOk = LICOES.filter(function (l) { return P.licoes[l.id] && P.licoes[l.id].done; }).length;
     var desOk = DES.filter(function (d) { return P.desafios[d.id] && P.desafios[d.id].passou; }).length;
-    function fase(i, alvo, n, tot) { var f = BYTE_FASES[i]; var temProg = tot != null; return h("a", { class: "fase", href: "#" + alvo, onclick: function (e) { e.preventDefault(); go(alvo); } }, h("span", { class: "tag" }, "Fase " + (i + 1)), h("span", { class: "big" }, f.nome), h("span", { style: "color:var(--muted);font-size:.9rem" }, f.resumo), temProg ? h("span", { style: "font-size:.85rem" }, n + " de " + tot) : null, temProg ? h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(n / tot * 100) + "%" })) : null); }
+    function fase(i, alvo, n, tot) { var f = BYTE_FASES[i]; var temProg = tot != null; return h("a", { class: "fase", href: "#" + alvo, onclick: navClick(alvo) }, h("span", { class: "fase-n" }, "Fase " + (i + 1)), h("span", { class: "big" }, f.nome), h("span", { class: "fase-r" }, f.resumo), temProg ? h("span", { class: "fase-p" }, n + " de " + tot + " concluídas") : null, temProg ? h("div", { class: "bar" }, h("i", { style: "width:" + Math.round(n / tot * 100) + "%" })) : null); }
     view.appendChild(h("div", { class: "fases" }, fase(0, "licao-" + LICOES[0].id, licOk, LICOES.length), fase(1, "desafio-" + DES[0].id, desOk, DES.length), fase(2, "projeto")));
-    view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "Como funciona")));
-    view.appendChild(h("div", { class: "how" },
-      h("div", { class: "card" }, h("b", null, "Rode o código"), h("p", null, "Todo exemplo roda aqui mesmo, no navegador. Edite, quebre e rode de novo.")),
-      h("div", { class: "card" }, h("b", null, "O Byte explica seus erros"), h("p", { html: U.inline("Sintaxe, `self` esquecido, `print` no lugar de `return`: ele aponta a linha e sugere o conserto.") })),
-      h("div", { class: "card" }, h("b", null, "Seu histórico fica salvo"), h("p", null, "Código, tentativas e progresso ficam guardados neste navegador. Use “Dados” para fazer uma cópia."))));
-    view.appendChild(h("div", { class: "foot" }, CFG.disciplina + " · " + CFG.periodo + (Store.falhou() ? " · Atenção: este navegador bloqueou o armazenamento; seu progresso vale só até fechar a página." : "")));
+    view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "Como estudar por aqui")));
+    view.appendChild(h("dl", { class: "how" },
+      h("div", null, h("dt", null, "Rode e quebre o código"), h("dd", null, "Todo exemplo roda no navegador. Mude um valor, apague uma linha e rode de novo para ver o que acontece.")),
+      h("div", null, h("dt", null, "Leia o que o Byte diz do erro"), h("dd", { html: U.inline("Ele aponta a linha e explica em português o que deu errado: `self` esquecido, `print` no lugar de `return`, indentação.") })),
+      h("div", null, h("dt", null, "Volte quando quiser"), h("dd", null, "Código, tentativas e progresso ficam salvos neste navegador. O botão Dados faz uma cópia para levar a outro computador."))));
+    view.appendChild(h("div", { class: "foot" }, "Monitoria de " + CFG.disciplina + "." + (Store.falhou() ? " Atenção: este navegador bloqueou o armazenamento, então seu progresso só vale até fechar a página." : "")));
   }
   function route_force() { var c = current; current = ""; route(c); }
 
   /* ------------------------------------------------------------ Lição */
   function renderLicao(l) {
     var idx = LICOES.indexOf(l), st = licSt(l.id);
-    view.appendChild(h("div", { class: "lic-head" }, h("div", { class: "kicker" }, "Fase 1 · Lição " + l.num + " · " + l.local), h("h1", null, l.titulo), h("p", { class: "lead" }, l.resumo)));
-    view.appendChild(h("div", { class: "diario" }, h("b", null, "Diário do Byte"), l.diario));
+    view.appendChild(h("div", { class: "lic-head" }, h("p", { class: "lic-pos" }, "Lição " + l.num + " de " + LICOES.length, h("span", { class: "lic-local" }, l.local)), h("h1", null, l.titulo), h("p", { class: "lead" }, l.resumo)));
+    view.appendChild(h("blockquote", { class: "diario" }, h("b", null, "Do diário do Byte"), l.diario));
     var fim = h("div", { class: "lic-end" });
     function atualizaFim() {
       fim.innerHTML = "";
       var quizzes = l.blocos.filter(function (b) { return b.t === "quiz"; });
       var todos = quizzes.every(function (q) { return st.quiz[q.id] && st.quiz[q.id].ok; });
       var ant = LICOES[idx - 1], prox = LICOES[idx + 1];
-      fim.appendChild(ant ? h("button", { class: "btn", onclick: function () { go("licao-" + ant.id); } }, "← " + ant.titulo) : h("span"));
+      fim.appendChild(ant ? linkBtn("licao-" + ant.id, "", [h("small", null, "Lição anterior"), ant.titulo]) : h("span"));
       var meio;
       if (st.done) meio = h("span", { class: "tag g sticker-pop" }, "Adesivo " + l.adesivo.nome + " colado");
       else meio = h("button", { class: "btn btn-primary", disabled: !todos, title: todos ? "" : "Acerte todas as perguntas desta lição", onclick: function () {
@@ -464,7 +604,7 @@
         toast("Adesivo " + l.adesivo.nome + " colado na mochila! +25 petiscos", "ok"); atualizaFim(); renderSide(); renderTop();
       } }, todos ? "Colar adesivo na mochila" : "Responda as perguntas para concluir");
       fim.appendChild(meio);
-      fim.appendChild(prox ? h("button", { class: "btn", onclick: function () { go("licao-" + prox.id); } }, prox.titulo + " →") : h("button", { class: "btn", onclick: function () { go("projeto"); } }, "Fase Secreta →"));
+      fim.appendChild(prox ? linkBtn("licao-" + prox.id, "", [h("small", null, "Próxima lição"), prox.titulo]) : linkBtn("projeto", "", [h("small", null, "Fase 3"), "A fase secreta"]));
     }
     l.blocos.forEach(function (b) {
       switch (b.t) {
@@ -478,7 +618,7 @@
         case "links": view.appendChild(linksBlock(b)); break;
         case "desafio":
           var d = desBy[b.id], ds = P.desafios[d.id];
-          view.appendChild(h("div", { class: "desafio-link" }, h("div", { class: "t" }, h("div", { class: "kicker", style: "margin:0" }, "Desafio " + d.num + " · " + d.dificuldade), h("b", null, d.titulo), h("div", { style: "color:var(--muted);font-size:.92rem" }, d.conceito + (ds && ds.passou ? " · resolvido" : ""))), h("button", { class: "btn btn-primary", onclick: function () { go("desafio-" + d.id); } }, ds && ds.passou ? "Rever desafio" : "Ir para o desafio")));
+          view.appendChild(h("div", { class: "desafio-link" }, h("div", { class: "t" }, h("small", null, "Desafio " + d.num + " de " + DES.length + ", nível " + d.dificuldade.toLowerCase()), h("b", null, d.titulo), h("span", { class: "dl-st" }, ds && ds.passou ? "Você já resolveu este." : "Hora de usar o que você acabou de ver.")), linkBtn("desafio-" + d.id, "btn-primary", ds && ds.passou ? "Rever desafio" : "Ir para o desafio")));
           break;
       }
     });
@@ -506,11 +646,11 @@
   function proximoPasso(d) {
     var l = licaoDoDesafio(d.id), idx = l ? LICOES.indexOf(l) : -1;
     var prox = idx >= 0 ? LICOES[idx + 1] : null;
-    if (prox) return { nome: "licao-" + prox.id, rotulo: "Próxima lição: " + prox.titulo + " →" };
-    return { nome: "projeto", rotulo: "Ir para a Fase Secreta →" };
+    if (prox) return { nome: "licao-" + prox.id, rotulo: "Próxima lição: " + prox.titulo };
+    return { nome: "projeto", rotulo: "Ir para a fase secreta" };
   }
   function renderDesafio(d) {
-    view.className = "view wide";
+    view.className = "view wide desafio-view";
     var S = desSt(d.id), idx = DES.indexOf(d);
     var draftKey = "chal-" + d.id;
     var inicial = (D[draftKey] && typeof D[draftKey].code === "string") ? D[draftKey].code : d.inicial;
@@ -518,19 +658,24 @@
 
     /* ----- esquerda ----- */
     var hintsEl = h("div", { class: "hints" });
-    var left = h("div", { class: "chal-left" },
-      h("div", { class: "kicker" }, "Fase 2 · Desafio " + d.num + " · " + d.conceito),
-      h("h1", null, d.titulo),
-      h("div", { class: "row", style: "margin-bottom:6px" }, h("span", { class: "tag" }, d.dificuldade), h("span", { class: "tag m" }, d.xp + " petiscos"), S.passou ? h("span", { class: "tag g" }, "Resolvido") : null),
+    // cabeçalho fixo; história, missão e dicas rolam embaixo dele
+    var corpo = h("div", { class: "chal-corpo" },
       byteSay(d.historia, "neutro"),
       troiaCard(d),
       h("h3", { style: "font-size:1.05rem;margin:14px 0 4px" }, "Sua missão"),
       h("ol", { class: "tarefa" }, d.tarefa.map(function (t) { return h("li", { html: U.inline(t) }); })),
       hintsEl,
-      h("a", { class: "link", href: d.dikastis.url, target: "_blank", rel: "noopener noreferrer", style: "margin-top:10px" }, h("span", { class: "ic" }, "↗"), h("span", null, d.dikastis.titulo, h("small", null, "Quando terminar aqui, pratique a versão oficial no Dikastis"))),
-      h("div", { class: "row", style: "margin-top:14px" },
-        licaoDoDesafio(d.id) ? h("button", { class: "btn btn-sm", onclick: function () { go("licao-" + licaoDoDesafio(d.id).id); } }, "← Voltar à lição") : null,
-        h("button", { class: "btn btn-sm", onclick: function () { go(proximoPasso(d).nome); } }, proximoPasso(d).rotulo)));
+      h("div", { style: "margin-top:10px" }, linkExt({ titulo: d.dikastis.titulo + " no Dikastis", url: d.dikastis.url, desc: "Quando terminar aqui, envie a versão oficial por lá" })));
+    var left = h("div", { class: "chal-left" }, h("div", { class: "chal-topo" },
+      h("p", { class: "lic-pos" }, "Desafio " + d.num + " de " + DES.length),
+      h("h1", null, d.titulo),
+      h("div", { class: "row", style: "margin-bottom:6px" }, h("span", { class: "tag" }, d.conceito), h("span", { class: "tag" }, "Nível " + d.dificuldade.toLowerCase()), h("span", { class: "tag m" }, d.xp + " petiscos"), S.passou ? h("span", { class: "tag g" }, "Resolvido") : null),
+      (function () { var l = licaoDoDesafio(d.id); return l ? h("a", { class: "rever-licao", href: "#licao-" + l.id, onclick: navClick("licao-" + l.id) }, h("small", null, "Travou? Reveja a explicação"), "Lição " + l.num + ": " + l.titulo) : null; })()), corpo);
+    // navegação fica fora da coluna: no celular ela desce para depois do editor
+    var licD = licaoDoDesafio(d.id);
+    var navDes = h("div", { class: "row chal-nav" },
+      h("button", { class: "btn btn-sm", type: "button", onclick: function () { voltar(licD ? "licao-" + licD.id : "inicio"); } }, "Voltar"),
+      linkBtn(proximoPasso(d).nome, "btn-sm", proximoPasso(d).rotulo));
 
     /* ----- direita ----- */
     var edBox = h("div", { class: "cb-ed" });
@@ -541,10 +686,13 @@
     var btnReset = h("button", { class: "btn btn-ghost btn-sm" }, "↺ Recomeçar");
     var outEl = h("div"), resEl = h("div", { class: "res" }), memEl = h("div"), histEl = h("div", { class: "hist-mini" });
     var editorCard = h("div", { class: "cb", style: "margin-top:0" },
-      h("div", { class: "cb-head" }, h("span", { class: "cb-title" }, d.arquivo), h("span", { class: "cb-status" }, "Ctrl+Enter executa")),
-      edBox, h("div", { class: "actions" }, btnRun, btnCheck, btnHint, h("span", { class: "sp" }), btnSol, btnReset), outEl, resEl, memEl);
-    var right = h("div", null, editorCard, histEl);
-    view.appendChild(h("div", { class: "chal" }, left, right));
+      h("div", { class: "cb-head" }, h("span", { class: "cb-title" }, d.arquivo), h("span", { class: "cb-status" }, TECLA + "+Enter executa")),
+      edBox, h("div", { class: "actions" }, btnRun, btnCheck, btnHint, h("span", { class: "sp" }), btnSol, btnReset));
+    // no computador a tela fica fixa: o editor ocupa o alto da coluna e o resultado rola embaixo dele
+    var saida = h("div", { class: "chal-saida" }, outEl, resEl, memEl, histEl);
+    var right = h("div", { class: "chal-right" }, editorCard, saida);
+    temMais(corpo); temMais(saida);
+    view.appendChild(h("div", { class: "chal" }, left, right, navDes));
 
     var ed = makeEditor(edBox, { value: inicial, onChange: function (v) { if (v !== d.inicial) D[draftKey] = { code: v, t: Date.now() }; else delete D[draftKey]; saveD(); }, onRun: roda });
     resEl.appendChild(byteSay("Escreva o código e clique em **Verificar**. Eu rodo os testes e, se algo falhar, explico onde e por quê. Use **Executar** para ver a saída do exemplo.", "neutro"));
@@ -569,12 +717,14 @@
     function pintaSol() {
       var libera = S.passou || S.falhas >= CFG.tentativasParaSolucao;
       btnSol.disabled = !libera;
-      btnSol.textContent = libera ? "Ver solução" : "Solução (após " + Math.max(0, CFG.tentativasParaSolucao - S.falhas) + " verificações)";
+      var faltam = Math.max(0, CFG.tentativasParaSolucao - S.falhas);
+      btnSol.textContent = libera ? "Ver solução" : "Solução (faltam " + faltam + ")";
+      btnSol.title = libera ? "" : "A solução de referência libera depois de " + CFG.tentativasParaSolucao + " verificações com erro. Faltam " + faltam + ".";
     }
     btnSol.addEventListener("click", function () {
       var corpo = h("div", null, h("p", { style: "color:var(--muted)" }, "Tente entender cada linha antes de copiar: na prova você não vai ter esta página."), codeView(d.solucao),
         h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "btn btn-primary", onclick: function () { ed.set(d.solucao); fecha(); toast("Solução colada no editor."); } }, "Colar no meu editor"), h("button", { class: "btn", onclick: function () { fecha(); } }, "Voltar")));
-      var fecha = modal("Solução de referência · " + d.titulo, corpo);
+      var fecha = modal("Solução de referência: " + d.titulo, corpo);
       refreshEditors();
       if (!S.solucao) { S.solucao = true; saveP(); logEv({ tipo: "solucao", ref: d.id, resumo: "Viu a solução de referência" }); }
     });
@@ -594,7 +744,7 @@
     function roda() {
       if (busy) return; trava(true, "run"); ed.clear();
       Runner.pedir({ mode: "run", files: (function () { var o = {}; o[d.arquivo] = ed.get(); return o; })(), extra: d.exemplo }).then(function (res) {
-        outEl.innerHTML = ""; memEl.innerHTML = ""; resEl.innerHTML = "";
+        outEl.innerHTML = ""; memEl.innerHTML = ""; resEl.innerHTML = ""; saida.scrollTop = 0;
         outEl.appendChild(h("pre", { class: "cb-out" }, h("span", { class: "lbl" }, "Saída do exemplo de uso"), res.stdout || "(o programa não imprimiu nada)"));
         var ds = (res.diagnostics || []).filter(function (x) { return x.level !== "tip"; });
         if (ds.length) resEl.appendChild(renderFeedback(ds)); else resEl.appendChild(byteSay("Rodou sem erros. Quando achar que está pronto, clique em **Verificar** para rodar os testes.", "ok"));
@@ -622,6 +772,7 @@
     btnCheck.addEventListener("click", verifica);
 
     function resultado(res, code) {
+      saida.scrollTop = 0;
       var tests = res.tests || [], okN = tests.filter(function (t) { return t.ok; }).length;
       var ds = res.diagnostics || [];
       var principal = destaque(ds.filter(function (x) { return x.level !== "tip"; }));
@@ -640,7 +791,7 @@
       }
       S.ultimaFalha = res.passed ? "" : assinatura;
       saveP();
-      logEv({ tipo: "check", ref: d.id, ok: !!res.passed, resumo: res.passed ? "Passou em todos os testes (" + okN + "/" + tests.length + ")" : (tests.length ? okN + "/" + tests.length + " testes · " : "") + (principal ? principal.title : "falhou"), code: code.slice(0, 12000) });
+      logEv({ tipo: "check", ref: d.id, ok: !!res.passed, resumo: res.passed ? "Passou em todos os testes (" + okN + "/" + tests.length + ")" : (tests.length ? okN + "/" + tests.length + " testes. " : "") + (principal ? principal.title : "falhou"), code: code.slice(0, 12000) });
       /* marca no editor */
       ed.mark(marcasDe(ds, d.arquivo));
       /* pinta resultado */
@@ -648,7 +799,7 @@
       if (res.passed) {
         resEl.appendChild(h("div", { class: "celebra" }, h("h3", null, "Todos os testes passaram!"),
           h("p", { style: "margin:0 0 8px" }, S.tentativas === 1 && primeira ? "De primeira! " : "", primeira ? "+" + S.xp + " petiscos" + (S.bonus ? " (inclui bônus de " + S.bonus + ")" : "") + ". " : "Você já tinha resolvido este desafio. ", "Agora treine a versão oficial no Dikastis."),
-          h("div", { class: "row" }, h("button", { class: "btn btn-primary", onclick: function () { go(proximoPasso(d).nome); } }, proximoPasso(d).rotulo), h("a", { class: "btn", href: d.dikastis.url, target: "_blank", rel: "noopener noreferrer" }, "Dikastis ↗"))));
+          h("div", { class: "row" }, linkBtn(proximoPasso(d).nome, "btn-primary", proximoPasso(d).rotulo), h("a", { class: "btn", href: d.dikastis.url, target: "_blank", rel: "noopener noreferrer" }, "Abrir no Dikastis"))));
         resEl.appendChild(byteSay("Au au! Esse bug do Mundo Pixel está consertado. " + (ds.length ? "Ainda tenho uma observação de estilo logo abaixo, se quiser capricho." : ""), "ok"));
         if (primeira) { toast("Desafio resolvido! +" + S.xp + " petiscos", "ok"); renderTop(); renderSide(); }
         var extras = ds.filter(function (x) { return x.level !== "error"; });
@@ -679,7 +830,7 @@
       if (!tent.length) return;
       histEl.appendChild(h("h3", null, "Suas tentativas neste desafio"));
       tent.forEach(function (e) {
-        histEl.appendChild(h("div", { class: "hist-item" }, h("span", { class: "chip " + (e.ok ? "ok" : "no") }, e.ok ? "passou" : "falhou"), h("span", { class: "when" }, U.quando(e.t) + " · " + e.resumo),
+        histEl.appendChild(h("div", { class: "hist-item" }, h("span", { class: "chip " + (e.ok ? "ok" : "no") }, e.ok ? "passou" : "falhou"), h("span", { class: "when" }, h("time", null, U.quando(e.t)), " ", e.resumo),
           e.code ? h("button", { class: "btn btn-sm btn-ghost", onclick: function () { ed.set(e.code); toast("Código dessa tentativa restaurado."); } }, "Restaurar código") : null));
       });
     }
@@ -691,30 +842,30 @@
     var PJ = BYTE_PROJETO, H = BYTE_HISTORIA;
     view.className = "view wide";
     var tImg = troiaImg("Troia");
-    view.appendChild(h("div", { class: "lic-head proj-head" }, h("div", null, h("div", { class: "kicker" }, "Fase 3 · Fase Secreta"), h("h1", null, "O Mundo Pixel é seu"), h("p", { class: "lead" }, H.fase)), tImg));
+    var galeria = recurso("projeto", /galeria/i);
+    view.appendChild(h("div", { class: "lic-head proj-head" }, h("div", null, h("p", { class: "lic-pos" }, "Fase 3, a fase secreta"), h("h1", null, "O Mundo Pixel é seu"), h("p", { class: "lead" }, H.fase)), tImg));
     view.appendChild(mdEl(PJ.intro));
     view.appendChild(h("div", { class: "row", style: "margin:8px 0 6px" },
-      h("a", { class: "btn btn-primary", href: CFG.templateRepo, target: "_blank", rel: "noopener noreferrer" }, "Abrir o template no GitHub ↗"),
-      h("a", { class: "btn", href: BYTE_RECURSOS[3].itens[1].url, target: "_blank", rel: "noopener noreferrer" }, "Galeria de projetos ↗")));
+      h("a", { class: "btn btn-primary", href: CFG.templateRepo, target: "_blank", rel: "noopener noreferrer" }, "Abrir o template no GitHub"),
+      galeria ? h("a", { class: "btn", href: galeria.url, target: "_blank", rel: "noopener noreferrer" }, "Ver jogos de outras turmas") : null));
     view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "Anatomia do template"), h("span", null, "Clique nos arquivos para ver o código e o conceito de POO que cada um usa")));
     view.appendChild(Widgets.arvore(PJ.arvore, codeView));
     view.appendChild(h("div", { class: "sec-title" }, h("h2", null, "Arte e mapas do seu jogo")));
     view.appendChild(h("div", { class: "link-grid" }, PJ.ferramentas.map(function (f) {
-      return h("a", { class: "link", href: f.url, target: "_blank", rel: "noopener noreferrer" }, h("span", { class: "ic" }, "↗"), h("span", null, f.titulo, h("small", { html: U.inline(f.desc) })));
+      return linkExt(f);
     })));
     view.appendChild(h("div", { class: "lbl", style: "margin-top:18px" }, "Como usar um sprite no lugar do retângulo (rode no seu computador)"));
     view.appendChild(codeView(PJ.spriteCodigo));
   }
 
   /* ---------------------------------------------------------- Recursos */
+  function recurso(tipo, re) {
+    var g = BYTE_RECURSOS.filter(function (x) { return x.tipo === tipo; })[0];
+    return g ? g.itens.filter(function (i) { return re.test(i.titulo); })[0] : null;
+  }
   function renderRecursos() {
-    view.appendChild(h("div", { class: "lic-head" }, h("div", { class: "kicker" }, "Mais"), h("h1", null, "Recursos"), h("p", { class: "lead" }, "Tudo o que a disciplina indicou, num lugar só.")));
-    BYTE_RECURSOS.forEach(function (g) {
-      view.appendChild(h("div", { class: "sec-title" }, h("h2", null, g.grupo)));
-      view.appendChild(h("div", { class: "link-grid" }, g.itens.map(function (i) {
-        return h("a", { class: "link", href: i.url, target: "_blank", rel: "noopener noreferrer" }, h("span", { class: "ic" }, "↗"), h("span", null, i.titulo, i.desc ? h("small", null, i.desc) : null));
-      })));
-    });
+    view.className = "view wide";
+    view.appendChild(recursosPainel());
   }
 
   /* --------------------------------------------------------- Histórico */
@@ -722,7 +873,7 @@
   function renderHistorico() {
     var checks = HIST.filter(function (e) { return e.tipo === "check"; }), oks = DES.filter(function (d) { return P.desafios[d.id] && P.desafios[d.id].passou; }).length;
     var licOk = LICOES.filter(function (l) { return P.licoes[l.id] && P.licoes[l.id].done; }).length;
-    view.appendChild(h("div", { class: "lic-head" }, h("div", { class: "kicker" }, "Mais"), h("h1", null, "Meu histórico"), h("p", { class: "lead" }, "Tudo o que você fez aqui, salvo neste navegador. Dá para mostrar à monitoria quando pedir ajuda.")));
+    view.appendChild(h("div", { class: "lic-head" }, h("h1", null, "Meu histórico"), h("p", { class: "lead" }, "Tudo o que você fez aqui, salvo neste navegador. Dá para mostrar à monitoria quando pedir ajuda.")));
     view.appendChild(h("div", { class: "stats" },
       h("div", { class: "card" }, h("b", null, licOk + "/" + LICOES.length), h("span", null, "lições concluídas")),
       h("div", { class: "card" }, h("b", null, oks + "/" + DES.length), h("span", null, "desafios resolvidos")),
@@ -761,11 +912,16 @@
     var imp = h("textarea", { class: "inp", placeholder: "Cole aqui o texto exportado para importar", "aria-label": "Importar progresso" });
     var msg = h("div", { style: "min-height:1.4em;color:var(--muted);margin-top:6px" });
     var zera = null;
+    var nomeInp = h("input", { class: "inp", id: "dados-nome", value: P.nome || "", maxlength: 30, placeholder: "Seu nome", autocomplete: "given-name" });
+    var nomeMsg = h("span", { style: "color:var(--muted);font-size:.9rem" });
     var corpo = h("div", null,
+      h("label", { class: "lbl", for: "dados-nome" }, "Como o Byte te chama"),
+      h("form", { class: "row", style: "margin-bottom:18px", onsubmit: function (e) { e.preventDefault(); P.nome = nomeInp.value.trim(); saveP(); nomeMsg.textContent = P.nome ? "Nome salvo." : "Nome apagado."; if (current === "inicio") route_force(); } },
+        nomeInp, h("button", { class: "btn btn-sm", type: "submit" }, "Salvar nome"), nomeMsg),
       h("p", { style: "color:var(--muted)" }, "Seu progresso fica só neste navegador. Para levar para outro computador, copie o texto abaixo e importe lá."),
       h("div", { class: "lbl" }, "Exportar"), ta,
       h("div", { class: "row", style: "margin:8px 0 16px" },
-        h("button", { class: "btn btn-sm", onclick: function () { ta.select(); try { navigator.clipboard.writeText(json).then(function () { msg.textContent = "Copiado!"; }, function () { document.execCommand("copy"); msg.textContent = "Copiado!"; }); } catch (e) { try { document.execCommand("copy"); msg.textContent = "Copiado!"; } catch (e2) { msg.textContent = "Selecione o texto e copie com Ctrl+C."; } } } }, "Copiar"),
+        h("button", { class: "btn btn-sm", onclick: function () { ta.select(); try { navigator.clipboard.writeText(json).then(function () { msg.textContent = "Copiado!"; }, function () { document.execCommand("copy"); msg.textContent = "Copiado!"; }); } catch (e) { try { document.execCommand("copy"); msg.textContent = "Copiado!"; } catch (e2) { msg.textContent = "Selecione o texto e copie com " + TECLA + "+C."; } } } }, "Copiar"),
         h("button", { class: "btn btn-sm", onclick: function () {
           try { var a = h("a", { href: URL.createObjectURL(new Blob([json], { type: "application/json" })), download: "byte-code-progresso.json" }); document.body.appendChild(a); a.click(); a.remove(); msg.textContent = "Se o download não começou, use Copiar."; } catch (e) { msg.textContent = "Use o botão Copiar."; }
         } }, "Baixar arquivo")),
@@ -788,7 +944,7 @@
 
   /* -------------------------------------------------------------- boot */
   function boot() {
-    document.title = CFG.titulo + " · " + CFG.subtitulo;
+    document.title = CFG.subtitulo + " | " + CFG.titulo;
     view = document.getElementById("view");
     try { if (localStorage.getItem(CFG.storagePrefix + ":side-off")) document.querySelector(".shell").classList.add("side-off"); } catch (e) {}
     var hashInicial = location.hash.replace("#", "");
